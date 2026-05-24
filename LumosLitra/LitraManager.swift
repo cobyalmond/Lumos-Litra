@@ -163,6 +163,7 @@ final class LitraManager: ObservableObject {
         case 0x20:
             let kelvin = Swift.max(2700, Swift.min(6500, (Int(bytes[4]) << 8 | Int(bytes[5])) / 100 * 100))
             guard temperature != kelvin else { return }
+            if circadianEnabled { circadianEnabled = false }
             temperature = kelvin
             UserDefaults.standard.set(kelvin, forKey: "temperature")
             print("[LitraManager] Physical button: temperature \(kelvin)K")
