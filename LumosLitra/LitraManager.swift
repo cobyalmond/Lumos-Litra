@@ -48,8 +48,8 @@ final class LitraManager: ObservableObject {
 
     // Serial queue for USB transfers — keeps synchronous sends off the main thread.
     private let usbQueue = DispatchQueue(label: "com.cobyalmond.LumosLitra.usb", qos: .userInitiated)
-    private var pendingBrightnessWork: DispatchWorkItem?
-    private var pendingTemperatureWork: DispatchWorkItem?
+    private var brightnessTimer: Timer?
+    private var temperatureTimer: Timer?
 
     init() {
         // Load persisted state before discovering devices so newly connected
@@ -117,29 +117,31 @@ final class LitraManager: ObservableObject {
 
     func setBrightness(_ fraction: Double) {
         brightness = fraction
-        UserDefaults.standard.set(fraction, forKey: "brightness")
-        pendingBrightnessWork?.cancel()
+        brightnessTimer?.invalidate()
         let snapshot = devices
-        let work = DispatchWorkItem {
-            for device in snapshot {
-                let span = device.spec.maxBrightness - device.spec.minBrightness
-                try? device.setBrightness(device.spec.minBrightness + Int(fraction * Double(span)))
+        let queue = usbQueue
+        brightnessTimer = .scheduledTimer(withTimeInterval: 0.04, repeats: false) { _ in
+            UserDefaults.standard.set(fraction, forKey: "brightness")
+            queue.async {
+                for device in snapshot {
+                    let span = device.spec.maxBrightness - device.spec.minBrightness
+                    try? device.setBrightness(device.spec.minBrightness + Int(fraction * Double(span)))
+                }
             }
         }
-        pendingBrightnessWork = work
-        usbQueue.asyncAfter(deadline: .now() + 0.04, execute: work)
     }
 
     func setTemperature(_ kelvin: Int) {
         temperature = kelvin
-        UserDefaults.standard.set(kelvin, forKey: "temperature")
-        pendingTemperatureWork?.cancel()
+        temperatureTimer?.invalidate()
         let snapshot = devices
-        let work = DispatchWorkItem {
-            for device in snapshot { try? device.setTemperature(kelvin) }
+        let queue = usbQueue
+        temperatureTimer = .scheduledTimer(withTimeInterval: 0.04, repeats: false) { _ in
+            UserDefaults.standard.set(kelvin, forKey: "temperature")
+            queue.async {
+                for device in snapshot { try? device.setTemperature(kelvin) }
+            }
         }
-        pendingTemperatureWork = work
-        usbQueue.asyncAfter(deadline: .now() + 0.04, execute: work)
     }
 
     // MARK: - Circadian mode
