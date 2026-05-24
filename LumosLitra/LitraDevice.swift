@@ -71,9 +71,11 @@ final class LitraDevice {
         req.wIndex        = interfaceNumber
         req.wLength       = UInt16(payload.count)
 
-        let data = NSMutableData(bytes: payload, length: payload.count)
-        var transferred = 0
-        try usbDevice.__send(req, data: data, bytesTransferred: &transferred, completionTimeout: 1.0)
+        try autoreleasepool {
+            let data = NSMutableData(bytes: payload, length: payload.count)
+            var transferred = 0
+            try usbDevice.__send(req, data: data, bytesTransferred: &transferred, completionTimeout: 1.0)
+        }
     }
 }
 

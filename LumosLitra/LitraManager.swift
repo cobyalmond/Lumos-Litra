@@ -22,6 +22,13 @@ final class LitraManager: ObservableObject {
         didSet { UserDefaults.standard.set(syncEnabled, forKey: "syncEnabled") }
     }
 
+    @Published var cameraAutoOn: Bool = false {
+        didSet {
+            UserDefaults.standard.set(cameraAutoOn, forKey: "cameraAutoOn")
+            cameraAutoOn ? cameraMonitor?.start() : cameraMonitor?.stop()
+        }
+    }
+
     @Published var circadianEnabled: Bool = false {
         didSet {
             UserDefaults.standard.set(circadianEnabled, forKey: "circadianEnabled")
@@ -36,6 +43,13 @@ final class LitraManager: ObservableObject {
     private var disconnectIterator: io_iterator_t = 0
     private var circadianTimer: Timer?
     private var hidMonitor: LitraHIDMonitor?
+    private var cameraMonitor: CameraMonitor?
+    private var cameraActivatedLights = false
+
+    // Serial queue for USB transfers — keeps synchronous sends off the main thread.
+    private let usbQueue = DispatchQueue(label: "com.cobyalmond.LumosLitra.usb", qos: .userInitiated)
+    private var pendingBrightnessWork: DispatchWorkItem?
+    private var pendingTemperatureWork: DispatchWorkItem?
 
     init() {
         // Load persisted state before discovering devices so newly connected
@@ -46,12 +60,15 @@ final class LitraManager: ObservableObject {
         temperature       = d.object(forKey: "temperature")  as? Int    ?? 4000
         circadianEnabled  = d.bool(forKey: "circadianEnabled")
         syncEnabled       = d.object(forKey: "syncEnabled")  as? Bool   ?? true
+        cameraAutoOn      = d.bool(forKey: "cameraAutoOn")
 
         setupNotifications()
-        hidMonitor = LitraHIDMonitor { [weak self] bytes in self?.handleHIDReport(bytes) }
+        hidMonitor    = LitraHIDMonitor { [weak self] bytes in self?.handleHIDReport(bytes) }
+        cameraMonitor = CameraMonitor { [weak self] active in self?.handleCameraState(active) }
 
-        // didSet doesn't fire during init, so start circadian manually if needed.
+        // didSet doesn't fire during init, so start manually if needed.
         if circadianEnabled { startCircadian() }
+        if cameraAutoOn     { cameraMonitor?.start() }
     }
 
     deinit {
@@ -67,6 +84,7 @@ final class LitraManager: ObservableObject {
     // MARK: - Public interface
 
     func setOn(_ on: Bool) {
+        if !on { cameraActivatedLights = false }
         isOn = on
         UserDefaults.standard.set(on, forKey: "isOn")
         for device in devices {
@@ -75,24 +93,53 @@ final class LitraManager: ObservableObject {
         }
     }
 
+    // MARK: - Camera auto-on
+
+    private func handleCameraState(_ active: Bool) {
+        guard cameraAutoOn else { return }
+        if active {
+            guard !isOn else { return }
+            cameraActivatedLights = true
+            setOn(true)
+            for device in devices {
+                let span = device.spec.maxBrightness - device.spec.minBrightness
+                try? device.setBrightness(device.spec.minBrightness + Int(brightness * Double(span)))
+                try? device.setTemperature(temperature)
+            }
+            print("[LitraManager] Camera active — lights on")
+        } else {
+            guard cameraActivatedLights else { return }
+            cameraActivatedLights = false
+            setOn(false)
+            print("[LitraManager] Camera inactive — lights off")
+        }
+    }
+
     func setBrightness(_ fraction: Double) {
         brightness = fraction
         UserDefaults.standard.set(fraction, forKey: "brightness")
-        for device in devices {
-            let span = device.spec.maxBrightness - device.spec.minBrightness
-            let lumens = device.spec.minBrightness + Int(fraction * Double(span))
-            do { try device.setBrightness(lumens) }
-            catch { print("[LitraManager] setBrightness error: \(error)") }
+        pendingBrightnessWork?.cancel()
+        let snapshot = devices
+        let work = DispatchWorkItem {
+            for device in snapshot {
+                let span = device.spec.maxBrightness - device.spec.minBrightness
+                try? device.setBrightness(device.spec.minBrightness + Int(fraction * Double(span)))
+            }
         }
+        pendingBrightnessWork = work
+        usbQueue.asyncAfter(deadline: .now() + 0.04, execute: work)
     }
 
     func setTemperature(_ kelvin: Int) {
         temperature = kelvin
         UserDefaults.standard.set(kelvin, forKey: "temperature")
-        for device in devices {
-            do { try device.setTemperature(kelvin) }
-            catch { print("[LitraManager] setTemperature error: \(error)") }
+        pendingTemperatureWork?.cancel()
+        let snapshot = devices
+        let work = DispatchWorkItem {
+            for device in snapshot { try? device.setTemperature(kelvin) }
         }
+        pendingTemperatureWork = work
+        usbQueue.asyncAfter(deadline: .now() + 0.04, execute: work)
     }
 
     // MARK: - Circadian mode

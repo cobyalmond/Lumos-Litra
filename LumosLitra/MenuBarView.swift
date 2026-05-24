@@ -165,6 +165,18 @@ struct MenuBarView: View {
                 .labelsHidden()
             }
 
+            // Camera auto-on
+            HStack(spacing: 8) {
+                Label("Camera auto-on", systemImage: "camera")
+                    .font(.subheadline)
+                Spacer()
+                Toggle("", isOn: Binding(
+                    get: { litra.cameraAutoOn },
+                    set: { litra.cameraAutoOn = $0 }
+                ))
+                .labelsHidden()
+            }
+
             // Sync toggle — only relevant with multiple lights
             if litra.devices.count > 1 {
                 HStack(spacing: 8) {

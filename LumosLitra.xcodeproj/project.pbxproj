@@ -16,6 +16,8 @@
 		AA000000000000000000029A /* ServiceManagement.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AA000000000000000000028A /* ServiceManagement.framework */; };
 		AA000000000000000000024A /* SunPosition.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000023A /* SunPosition.swift */; };
 		AA000000000000000000026A /* LitraHIDMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000025A /* LitraHIDMonitor.swift */; };
+		AA00000000000000000002DA /* CoreMediaIO.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AA00000000000000000002CA /* CoreMediaIO.framework */; };
+		AA00000000000000000002FA /* CameraMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000002EA /* CameraMonitor.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -30,6 +32,8 @@
 		AA000000000000000000028A /* ServiceManagement.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ServiceManagement.framework; path = System/Library/Frameworks/ServiceManagement.framework; sourceTree = SDKROOT; };
 		AA000000000000000000023A /* SunPosition.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SunPosition.swift; sourceTree = "<group>"; };
 		AA000000000000000000025A /* LitraHIDMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LitraHIDMonitor.swift; sourceTree = "<group>"; };
+		AA00000000000000000002CA /* CoreMediaIO.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreMediaIO.framework; path = System/Library/Frameworks/CoreMediaIO.framework; sourceTree = SDKROOT; };
+		AA00000000000000000002EA /* CameraMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraMonitor.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -39,6 +43,7 @@
 			files = (
 				AA000000000000000000021A /* IOUSBHost.framework in Frameworks */,
 				AA000000000000000000029A /* ServiceManagement.framework in Frameworks */,
+				AA00000000000000000002DA /* CoreMediaIO.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -59,6 +64,7 @@
 			children = (
 				AA000000000000000000020A /* IOUSBHost.framework */,
 				AA000000000000000000028A /* ServiceManagement.framework */,
+				AA00000000000000000002CA /* CoreMediaIO.framework */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -72,6 +78,7 @@
 				AA00000000000000000001BF /* LitraManager.swift */,
 				AA000000000000000000023A /* SunPosition.swift */,
 				AA000000000000000000025A /* LitraHIDMonitor.swift */,
+				AA00000000000000000002EA /* CameraMonitor.swift */,
 				AA000000000000000000015F /* LumosLitra.entitlements */,
 				AA000000000000000000016A /* Assets.xcassets */,
 			);
@@ -161,6 +168,7 @@
 				AA00000000000000000001DF /* LitraManager.swift in Sources */,
 				AA000000000000000000024A /* SunPosition.swift in Sources */,
 				AA000000000000000000026A /* LitraHIDMonitor.swift in Sources */,
+				AA00000000000000000002FA /* CameraMonitor.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
