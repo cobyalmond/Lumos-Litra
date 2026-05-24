@@ -18,16 +18,23 @@ final class LitraManager: ObservableObject {
     @Published var brightness: Double = 0.5
     @Published var temperature: Int = 4000
 
+    @Published var circadianEnabled: Bool = false {
+        didSet { circadianEnabled ? startCircadian() : stopCircadian() }
+    }
+    @Published private(set) var solarAltitude: Double = 0
+
     private var notificationPort: IONotificationPortRef?
     private var notificationSource: CFRunLoopSource?
     private var connectIterator: io_iterator_t = 0
     private var disconnectIterator: io_iterator_t = 0
+    private var circadianTimer: Timer?
 
     init() {
         setupNotifications()
     }
 
     deinit {
+        circadianTimer?.invalidate()
         if connectIterator != 0    { IOObjectRelease(connectIterator) }
         if disconnectIterator != 0 { IOObjectRelease(disconnectIterator) }
         if let src = notificationSource {
@@ -64,6 +71,56 @@ final class LitraManager: ObservableObject {
         }
     }
 
+    // MARK: - Circadian mode
+
+    private func startCircadian() {
+        applyCircadian()
+        circadianTimer = Timer.scheduledTimer(withTimeInterval: 120, repeats: true) { [weak self] _ in
+            self?.applyCircadian()
+        }
+    }
+
+    private func stopCircadian() {
+        circadianTimer?.invalidate()
+        circadianTimer = nil
+    }
+
+    private func applyCircadian() {
+        let (lat, lon) = timeZoneCoordinates()
+        let alt = SunPosition.altitude(latitude: lat, longitude: lon)
+        solarAltitude = alt
+        setTemperature(SunPosition.kelvin(for: alt))
+    }
+
+    // Derives approximate latitude and longitude from the system timezone.
+    // Longitude: timezone UTC offset × 15° (exact for standard meridians, within
+    // ~30–45 min for zones that don't sit on their meridian).
+    // Latitude: rough regional default from the IANA timezone prefix.
+    private func timeZoneCoordinates() -> (lat: Double, lon: Double) {
+        let tz  = TimeZone.current
+        let lon = Double(tz.secondsFromGMT()) / 3600.0 * 15.0
+
+        let id  = tz.identifier
+        let lat: Double
+        switch true {
+        case id.hasPrefix("America/"), id.hasPrefix("US/"), id.hasPrefix("Canada/"):
+            lat = 40.0
+        case id.hasPrefix("Europe/"):
+            lat = 50.0
+        case id.hasPrefix("Australia/"):
+            lat = -33.0
+        case id.hasPrefix("Asia/"):
+            lat = 35.0
+        case id.hasPrefix("Pacific/"):
+            lat = 0.0
+        case id.hasPrefix("Africa/"):
+            lat = 5.0
+        default:
+            lat = 40.0
+        }
+        return (lat, lon)
+    }
+
     // MARK: - Notification setup
 
     private func setupNotifications() {
@@ -96,8 +153,6 @@ final class LitraManager: ObservableObject {
 
     // MARK: - Notification drain
 
-    // Drains the iterator (required by IOKit to arm future notifications),
-    // then reconciles the tracked device list against the live IOUSB registry.
     fileprivate func drainAndReconcile(_ iterator: io_iterator_t) {
         var service = IOIteratorNext(iterator)
         while service != 0 { IOObjectRelease(service); service = IOIteratorNext(iterator) }
@@ -106,13 +161,11 @@ final class LitraManager: ObservableObject {
 
     // MARK: - Device reconciliation
 
-    // Single-pass scan of the IOUSB registry plane. Adds newly found Litra
-    // devices and removes ones that have disappeared.
     private func reconcileDeviceList() {
         struct FoundDevice {
             let entryID: UInt64
             let spec: LitraDevice.Spec
-            let service: io_service_t  // +1 retain; released after use
+            let service: io_service_t
         }
 
         var iter: io_iterator_t = 0
@@ -124,9 +177,6 @@ final class LitraManager: ObservableObject {
         }
         defer { IOObjectRelease(iter) }
 
-        // Walk every node in the IOUSB plane tree, collect matching Litra devices.
-        // Note: IOUSBHostInterface children are inaccessible (DEXT entitlements block
-        // child enumeration), so we use the interface number from the Spec instead.
         var found: [FoundDevice] = []
         var svc = IOIteratorNext(iter)
         while svc != 0 {
@@ -134,7 +184,7 @@ final class LitraManager: ObservableObject {
                let pid = ioRegistryInt(svc, "idProduct"), let spec = LitraDevice.specs[pid] {
                 var entryID: UInt64 = 0
                 IORegistryEntryGetRegistryEntryID(svc, &entryID)
-                IOObjectRetain(svc)  // keep alive past the IOObjectRelease below
+                IOObjectRetain(svc)
                 found.append(FoundDevice(entryID: entryID, spec: spec, service: svc))
             }
             IOObjectRelease(svc)
@@ -144,14 +194,12 @@ final class LitraManager: ObservableObject {
 
         let presentIDs = Set(found.map { $0.entryID })
 
-        // Remove devices that are no longer in the registry.
         let before = devices.count
         devices.removeAll { !presentIDs.contains($0.usbDeviceEntryID) }
         if devices.count < before {
             print("[LitraManager] \(before - devices.count) device(s) removed — total: \(devices.count)")
         }
 
-        // Open and add any devices not yet tracked.
         for f in found where !devices.contains(where: { $0.usbDeviceEntryID == f.entryID }) {
             do {
                 let usbDevice = try IOUSBHostDevice(

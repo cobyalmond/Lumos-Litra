@@ -13,6 +13,7 @@
 		AA00000000000000000001CF /* LitraDevice.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000001AE /* LitraDevice.swift */; };
 		AA00000000000000000001DF /* LitraManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000001BF /* LitraManager.swift */; };
 		AA000000000000000000021A /* IOUSBHost.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AA000000000000000000020A /* IOUSBHost.framework */; };
+		AA000000000000000000024A /* SunPosition.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000023A /* SunPosition.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -24,6 +25,7 @@
 		AA00000000000000000001AE /* LitraDevice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LitraDevice.swift; sourceTree = "<group>"; };
 		AA00000000000000000001BF /* LitraManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LitraManager.swift; sourceTree = "<group>"; };
 		AA000000000000000000020A /* IOUSBHost.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = IOUSBHost.framework; path = System/Library/Frameworks/IOUSBHost.framework; sourceTree = SDKROOT; };
+		AA000000000000000000023A /* SunPosition.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SunPosition.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -62,6 +64,7 @@
 				AA000000000000000000014E /* MenuBarView.swift */,
 				AA00000000000000000001AE /* LitraDevice.swift */,
 				AA00000000000000000001BF /* LitraManager.swift */,
+				AA000000000000000000023A /* SunPosition.swift */,
 				AA000000000000000000015F /* LumosLitra.entitlements */,
 				AA000000000000000000016A /* Assets.xcassets */,
 			);
@@ -149,6 +152,7 @@
 				AA000000000000000000018C /* MenuBarView.swift in Sources */,
 				AA00000000000000000001CF /* LitraDevice.swift in Sources */,
 				AA00000000000000000001DF /* LitraManager.swift in Sources */,
+				AA000000000000000000024A /* SunPosition.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

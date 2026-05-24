@@ -44,7 +44,7 @@ struct MenuBarView: View {
 
     private var controlsView: some View {
         VStack(alignment: .leading, spacing: 16) {
-            // Power toggle — the most important control, lives at the top
+            // Power toggle
             HStack {
                 Label("Lights", systemImage: litra.isOn ? "lightbulb.fill" : "lightbulb")
                     .font(.headline)
@@ -58,12 +58,10 @@ struct MenuBarView: View {
 
             Divider()
 
-            // Brightness — disabled when lights are off so you can't accidentally
-            // change brightness without seeing the result
+            // Brightness — always enabled so you can set a level before turning on
             VStack(alignment: .leading, spacing: 6) {
                 Label("Brightness", systemImage: "sun.max")
                     .font(.subheadline)
-                    .foregroundStyle(litra.isOn ? .primary : .secondary)
 
                 Slider(
                     value: Binding(
@@ -72,15 +70,14 @@ struct MenuBarView: View {
                     ),
                     in: 0...1
                 )
-                .disabled(!litra.isOn)
             }
 
-            // Color temperature
+            // Color temperature — disabled only when circadian is driving it
             VStack(alignment: .leading, spacing: 6) {
                 HStack {
                     Label("Temperature", systemImage: "thermometer.medium")
                         .font(.subheadline)
-                        .foregroundStyle(litra.isOn ? .primary : .secondary)
+                        .foregroundStyle(litra.circadianEnabled ? .secondary : .primary)
                     Spacer()
                     Text("\(litra.temperature)K")
                         .font(.caption)
@@ -88,8 +85,6 @@ struct MenuBarView: View {
                         .monospacedDigit()
                 }
 
-                // Slider snaps to nearest 100K step on release.
-                // Range: 2700K (warm candlelight) → 6500K (cool daylight)
                 Slider(
                     value: Binding(
                         get: { Double(litra.temperature) },
@@ -98,7 +93,7 @@ struct MenuBarView: View {
                     in: 2700...6500,
                     step: 100
                 )
-                .disabled(!litra.isOn)
+                .disabled(litra.circadianEnabled)
 
                 HStack {
                     Text("Warm")
@@ -109,7 +104,25 @@ struct MenuBarView: View {
                 .foregroundStyle(.tertiary)
             }
 
-            // Device count — subtle, lives at the bottom of the controls area
+            // Circadian toggle — always enabled so you can arm it before turning on
+            HStack(spacing: 8) {
+                Label("Circadian", systemImage: "sun.and.horizon")
+                    .font(.subheadline)
+                Spacer()
+                if litra.circadianEnabled {
+                    Text("\(litra.solarAltitude >= 0 ? "+" : "")\(Int(litra.solarAltitude))°")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                }
+                Toggle("", isOn: Binding(
+                    get: { litra.circadianEnabled },
+                    set: { litra.circadianEnabled = $0 }
+                ))
+                .labelsHidden()
+            }
+
+            // Device count
             Text("\(litra.devices.count) light\(litra.devices.count == 1 ? "" : "s") connected")
                 .font(.caption)
                 .foregroundStyle(.tertiary)
