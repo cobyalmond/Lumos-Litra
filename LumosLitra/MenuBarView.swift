@@ -1,5 +1,20 @@
 import SwiftUI
 
+// Maps a Kelvin color temperature to an approximate screen color.
+// 2700K → rich amber, 4000K → golden yellow, 6500K → near-white
+extension Color {
+    static func kelvin(_ k: Int) -> Color {
+        let t = (Double(k - 2700) / Double(6500 - 2700)).clamped(to: 0...1)
+        return Color(hue: 0.09 + t * 0.05,       // amber → warm yellow
+                     saturation: 0.9 - t * 0.82,  // rich → near-white
+                     brightness: 1.0)
+    }
+}
+
+private extension Double {
+    func clamped(to r: ClosedRange<Double>) -> Double { max(r.lowerBound, min(r.upperBound, self)) }
+}
+
 struct MenuBarView: View {
     @EnvironmentObject var litra: LitraManager
 
@@ -44,9 +59,12 @@ struct MenuBarView: View {
 
     private var controlsView: some View {
         VStack(alignment: .leading, spacing: 16) {
-            // Power toggle
+            // Power toggle — icon and track both reflect temperature when on
             HStack {
-                Label("Lights", systemImage: litra.isOn ? "lightbulb.fill" : "lightbulb")
+                Image(systemName: litra.isOn ? "lightbulb.fill" : "lightbulb")
+                    .foregroundStyle(litra.isOn ? Color.kelvin(litra.temperature) : .secondary)
+                    .font(.headline)
+                Text("Lights")
                     .font(.headline)
                 Spacer()
                 Toggle("", isOn: Binding(
@@ -54,11 +72,13 @@ struct MenuBarView: View {
                     set: { litra.setOn($0) }
                 ))
                 .labelsHidden()
+                .toggleStyle(.switch)
+                .tint(Color.kelvin(litra.temperature))
             }
 
             Divider()
 
-            // Brightness — always enabled so you can set a level before turning on
+            // Brightness
             VStack(alignment: .leading, spacing: 6) {
                 Label("Brightness", systemImage: "sun.max")
                     .font(.subheadline)
@@ -72,7 +92,7 @@ struct MenuBarView: View {
                 )
             }
 
-            // Color temperature — disabled only when circadian is driving it
+            // Color temperature — disabled when circadian is active
             VStack(alignment: .leading, spacing: 6) {
                 HStack {
                     Label("Temperature", systemImage: "thermometer.medium")
@@ -104,7 +124,7 @@ struct MenuBarView: View {
                 .foregroundStyle(.tertiary)
             }
 
-            // Circadian toggle — always enabled so you can arm it before turning on
+            // Circadian toggle
             HStack(spacing: 8) {
                 Label("Circadian", systemImage: "sun.and.horizon")
                     .font(.subheadline)
