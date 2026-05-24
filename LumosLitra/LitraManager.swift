@@ -143,13 +143,33 @@ final class LitraManager: ObservableObject {
     // MARK: - Hardware sync
 
     private func handleHIDReport(_ bytes: [UInt8]) {
-        guard bytes.count >= 5, bytes[0] == 0x11, bytes[1] == 0xff else { return }
-        if bytes[3] == 0x00 {
+        guard bytes.count >= 6, bytes[0] == 0x11, bytes[1] == 0xff else { return }
+        switch bytes[3] {
+        case 0x00:
             let on = bytes[4] == 0x01
             guard isOn != on else { return }
             isOn = on
             UserDefaults.standard.set(on, forKey: "isOn")
             print("[LitraManager] Physical button: power \(on ? "on" : "off")")
+        case 0x10:
+            let lumens = Int(bytes[4]) << 8 | Int(bytes[5])
+            guard let spec = devices.first?.spec else { return }
+            let fraction = Swift.max(0.0, Swift.min(1.0,
+                Double(lumens - spec.minBrightness) / Double(spec.maxBrightness - spec.minBrightness)))
+            guard abs(brightness - fraction) > 0.001 else { return }
+            brightness = fraction
+            UserDefaults.standard.set(fraction, forKey: "brightness")
+            print("[LitraManager] Physical button: brightness \(lumens) lm → \(Int(fraction * 100))%")
+        case 0x20:
+            let kelvin = Swift.max(2700, Swift.min(6500, (Int(bytes[4]) << 8 | Int(bytes[5])) / 100 * 100))
+            guard temperature != kelvin else { return }
+            temperature = kelvin
+            UserDefaults.standard.set(kelvin, forKey: "temperature")
+            print("[LitraManager] Physical button: temperature \(kelvin)K")
+        case 0x9c, 0x8e:
+            break // command-echo noise, ignore
+        default:
+            break
         }
     }
 
