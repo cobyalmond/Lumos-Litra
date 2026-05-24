@@ -31,6 +31,7 @@ final class LitraManager: ObservableObject {
     private var connectIterator: io_iterator_t = 0
     private var disconnectIterator: io_iterator_t = 0
     private var circadianTimer: Timer?
+    private var hidMonitor: LitraHIDMonitor?
 
     init() {
         // Load persisted state before discovering devices so newly connected
@@ -42,6 +43,7 @@ final class LitraManager: ObservableObject {
         circadianEnabled  = d.bool(forKey: "circadianEnabled")
 
         setupNotifications()
+        hidMonitor = LitraHIDMonitor { [weak self] bytes in self?.handleHIDReport(bytes) }
 
         // didSet doesn't fire during init, so start circadian manually if needed.
         if circadianEnabled { startCircadian() }
@@ -136,6 +138,19 @@ final class LitraManager: ObservableObject {
             lat = 40.0
         }
         return (lat, lon)
+    }
+
+    // MARK: - Hardware sync
+
+    private func handleHIDReport(_ bytes: [UInt8]) {
+        guard bytes.count >= 5, bytes[0] == 0x11, bytes[1] == 0xff else { return }
+        if bytes[3] == 0x00 {
+            let on = bytes[4] == 0x01
+            guard isOn != on else { return }
+            isOn = on
+            UserDefaults.standard.set(on, forKey: "isOn")
+            print("[LitraManager] Physical button: power \(on ? "on" : "off")")
+        }
     }
 
     // MARK: - Notification setup

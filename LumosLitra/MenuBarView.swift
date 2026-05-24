@@ -37,7 +37,7 @@ struct MenuBarView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 16)
                 .padding(.top, 10)
-                .onChange(of: launchAtLogin) { enabled in
+                .onChange(of: launchAtLogin) { _, enabled in
                     do {
                         if enabled { try SMAppService.mainApp.register() }
                         else       { try SMAppService.mainApp.unregister() }
