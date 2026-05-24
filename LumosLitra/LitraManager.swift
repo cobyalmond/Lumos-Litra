@@ -18,6 +18,10 @@ final class LitraManager: ObservableObject {
     @Published var brightness: Double = 0.5
     @Published var temperature: Int = 4000
 
+    @Published var syncEnabled: Bool = true {
+        didSet { UserDefaults.standard.set(syncEnabled, forKey: "syncEnabled") }
+    }
+
     @Published var circadianEnabled: Bool = false {
         didSet {
             UserDefaults.standard.set(circadianEnabled, forKey: "circadianEnabled")
@@ -41,6 +45,7 @@ final class LitraManager: ObservableObject {
         brightness        = d.object(forKey: "brightness")   as? Double ?? 0.5
         temperature       = d.object(forKey: "temperature")  as? Int    ?? 4000
         circadianEnabled  = d.bool(forKey: "circadianEnabled")
+        syncEnabled       = d.object(forKey: "syncEnabled")  as? Bool   ?? true
 
         setupNotifications()
         hidMonitor = LitraHIDMonitor { [weak self] bytes in self?.handleHIDReport(bytes) }
@@ -150,12 +155,14 @@ final class LitraManager: ObservableObject {
             guard isOn != on else { return }
             isOn = on
             UserDefaults.standard.set(on, forKey: "isOn")
-            for device in devices {
-                try? device.setPower(on)
-                if on {
-                    let span = device.spec.maxBrightness - device.spec.minBrightness
-                    try? device.setBrightness(device.spec.minBrightness + Int(brightness * Double(span)))
-                    try? device.setTemperature(temperature)
+            if syncEnabled {
+                for device in devices {
+                    try? device.setPower(on)
+                    if on {
+                        let span = device.spec.maxBrightness - device.spec.minBrightness
+                        try? device.setBrightness(device.spec.minBrightness + Int(brightness * Double(span)))
+                        try? device.setTemperature(temperature)
+                    }
                 }
             }
             print("[LitraManager] Physical button: power \(on ? "on" : "off")")
@@ -167,9 +174,11 @@ final class LitraManager: ObservableObject {
             guard abs(brightness - fraction) > 0.001 else { return }
             brightness = fraction
             UserDefaults.standard.set(fraction, forKey: "brightness")
-            for device in devices {
-                let span = device.spec.maxBrightness - device.spec.minBrightness
-                try? device.setBrightness(device.spec.minBrightness + Int(fraction * Double(span)))
+            if syncEnabled {
+                for device in devices {
+                    let span = device.spec.maxBrightness - device.spec.minBrightness
+                    try? device.setBrightness(device.spec.minBrightness + Int(fraction * Double(span)))
+                }
             }
             print("[LitraManager] Physical button: brightness \(lumens) lm → \(Int(fraction * 100))%")
         case 0x20:
@@ -178,7 +187,9 @@ final class LitraManager: ObservableObject {
             if circadianEnabled { circadianEnabled = false }
             temperature = kelvin
             UserDefaults.standard.set(kelvin, forKey: "temperature")
-            for device in devices { try? device.setTemperature(kelvin) }
+            if syncEnabled {
+                for device in devices { try? device.setTemperature(kelvin) }
+            }
             print("[LitraManager] Physical button: temperature \(kelvin)K")
         case 0x9c, 0x8e:
             break // command-echo noise, ignore
@@ -272,6 +283,7 @@ final class LitraManager: ObservableObject {
                     __ioService: f.service, options: [], queue: nil, interestHandler: nil)
                 let light = LitraDevice(usbDevice: usbDevice, usbDeviceEntryID: f.entryID, spec: f.spec)
                 devices.append(light)
+                if devices.count > 1 { syncEnabled = true }
                 print("[LitraManager] Device added — total: \(devices.count)")
                 try? light.setPower(isOn)
                 if isOn {

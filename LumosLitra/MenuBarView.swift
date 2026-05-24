@@ -165,6 +165,20 @@ struct MenuBarView: View {
                 .labelsHidden()
             }
 
+            // Sync toggle — only relevant with multiple lights
+            if litra.devices.count > 1 {
+                HStack(spacing: 8) {
+                    Label("Button sync", systemImage: "arrow.left.arrow.right")
+                        .font(.subheadline)
+                    Spacer()
+                    Toggle("", isOn: Binding(
+                        get: { litra.syncEnabled },
+                        set: { litra.syncEnabled = $0 }
+                    ))
+                    .labelsHidden()
+                }
+            }
+
             // Device count
             Text("\(litra.devices.count) light\(litra.devices.count == 1 ? "" : "s") connected")
                 .font(.caption)
