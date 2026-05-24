@@ -19,7 +19,10 @@ final class LitraManager: ObservableObject {
     @Published var temperature: Int = 4000
 
     @Published var circadianEnabled: Bool = false {
-        didSet { circadianEnabled ? startCircadian() : stopCircadian() }
+        didSet {
+            UserDefaults.standard.set(circadianEnabled, forKey: "circadianEnabled")
+            circadianEnabled ? startCircadian() : stopCircadian()
+        }
     }
     @Published private(set) var solarAltitude: Double = 0
 
@@ -30,7 +33,18 @@ final class LitraManager: ObservableObject {
     private var circadianTimer: Timer?
 
     init() {
+        // Load persisted state before discovering devices so newly connected
+        // lights are initialized to the correct values immediately.
+        let d = UserDefaults.standard
+        isOn              = d.bool(forKey: "isOn")
+        brightness        = d.object(forKey: "brightness")   as? Double ?? 0.5
+        temperature       = d.object(forKey: "temperature")  as? Int    ?? 4000
+        circadianEnabled  = d.bool(forKey: "circadianEnabled")
+
         setupNotifications()
+
+        // didSet doesn't fire during init, so start circadian manually if needed.
+        if circadianEnabled { startCircadian() }
     }
 
     deinit {
@@ -47,6 +61,7 @@ final class LitraManager: ObservableObject {
 
     func setOn(_ on: Bool) {
         isOn = on
+        UserDefaults.standard.set(on, forKey: "isOn")
         for device in devices {
             do { try device.setPower(on) }
             catch { print("[LitraManager] setPower error: \(error)") }
@@ -55,6 +70,7 @@ final class LitraManager: ObservableObject {
 
     func setBrightness(_ fraction: Double) {
         brightness = fraction
+        UserDefaults.standard.set(fraction, forKey: "brightness")
         for device in devices {
             let span = device.spec.maxBrightness - device.spec.minBrightness
             let lumens = device.spec.minBrightness + Int(fraction * Double(span))
@@ -65,6 +81,7 @@ final class LitraManager: ObservableObject {
 
     func setTemperature(_ kelvin: Int) {
         temperature = kelvin
+        UserDefaults.standard.set(kelvin, forKey: "temperature")
         for device in devices {
             do { try device.setTemperature(kelvin) }
             catch { print("[LitraManager] setTemperature error: \(error)") }
