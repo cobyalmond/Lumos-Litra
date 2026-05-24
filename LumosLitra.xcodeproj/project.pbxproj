@@ -13,6 +13,7 @@
 		AA00000000000000000001CF /* LitraDevice.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000001AE /* LitraDevice.swift */; };
 		AA00000000000000000001DF /* LitraManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000001BF /* LitraManager.swift */; };
 		AA000000000000000000021A /* IOUSBHost.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AA000000000000000000020A /* IOUSBHost.framework */; };
+		AA000000000000000000029A /* ServiceManagement.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AA000000000000000000028A /* ServiceManagement.framework */; };
 		AA000000000000000000024A /* SunPosition.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000023A /* SunPosition.swift */; };
 /* End PBXBuildFile section */
 
@@ -25,6 +26,7 @@
 		AA00000000000000000001AE /* LitraDevice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LitraDevice.swift; sourceTree = "<group>"; };
 		AA00000000000000000001BF /* LitraManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LitraManager.swift; sourceTree = "<group>"; };
 		AA000000000000000000020A /* IOUSBHost.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = IOUSBHost.framework; path = System/Library/Frameworks/IOUSBHost.framework; sourceTree = SDKROOT; };
+		AA000000000000000000028A /* ServiceManagement.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ServiceManagement.framework; path = System/Library/Frameworks/ServiceManagement.framework; sourceTree = SDKROOT; };
 		AA000000000000000000023A /* SunPosition.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SunPosition.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -34,6 +36,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				AA000000000000000000021A /* IOUSBHost.framework in Frameworks */,
+				AA000000000000000000029A /* ServiceManagement.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -53,6 +56,7 @@
 			isa = PBXGroup;
 			children = (
 				AA000000000000000000020A /* IOUSBHost.framework */,
+				AA000000000000000000028A /* ServiceManagement.framework */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";

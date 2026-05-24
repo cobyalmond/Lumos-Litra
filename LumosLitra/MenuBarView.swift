@@ -1,4 +1,5 @@
 import SwiftUI
+import ServiceManagement
 
 // Maps a Kelvin color temperature to an approximate screen color.
 // 2700K → rich amber, 4000K → golden yellow, 6500K → near-white
@@ -17,6 +18,7 @@ private extension Double {
 
 struct MenuBarView: View {
     @EnvironmentObject var litra: LitraManager
+    @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -27,6 +29,27 @@ struct MenuBarView: View {
             }
 
             Divider()
+
+            Toggle("Launch at Login", isOn: $launchAtLogin)
+                .toggleStyle(.checkbox)
+                .foregroundStyle(.secondary)
+                .font(.callout)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 16)
+                .padding(.top, 10)
+                .onChange(of: launchAtLogin) { enabled in
+                    do {
+                        if enabled { try SMAppService.mainApp.register() }
+                        else       { try SMAppService.mainApp.unregister() }
+                    } catch {
+                        print("[LumosLitra] Launch at login: \(error)")
+                        launchAtLogin = !enabled  // revert on failure
+                    }
+                }
+
+            Divider()
+                .padding(.horizontal, 16)
+                .padding(.top, 6)
 
             Button("Quit") {
                 NSApplication.shared.terminate(nil)
