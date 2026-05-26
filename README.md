@@ -13,3 +13,9 @@ Features:
 - Sync lights to camera (auto-on)
 - Sync with hardware buttons (across devices too)
 - Multiple light support
+
+---
+Special thanks to [@timrogers](https://github.com/timrogers) for his inspiration and prior art in:
+https://github.com/timrogers/litra-rs
+and
+https://github.com/timrogers/litra-autotoggle
