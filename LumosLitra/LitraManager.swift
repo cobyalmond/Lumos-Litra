@@ -141,11 +141,11 @@ final class LitraManager: ObservableObject {
     func setBrightness(_ fraction: Double) {
         brightness = fraction
         brightnessTimer?.invalidate()
-        let delay = max(0, 0.04 - Date().timeIntervalSince(lastBrightnessSent))
+        let elapsed = Date().timeIntervalSince(lastBrightnessSent)
         let snapshot = devices
         let queue = usbQueue
-        brightnessTimer = .scheduledTimer(withTimeInterval: delay, repeats: false) { [weak self] _ in
-            self?.lastBrightnessSent = Date()
+        let send = {
+            self.lastBrightnessSent = Date()
             UserDefaults.standard.set(fraction, forKey: "brightness")
             queue.async {
                 for device in snapshot {
@@ -154,19 +154,35 @@ final class LitraManager: ObservableObject {
                 }
             }
         }
+        if elapsed >= 0.04 {
+            send()
+        } else {
+            brightnessTimer = .scheduledTimer(withTimeInterval: 0.04 - elapsed, repeats: false) { [weak self] _ in
+                guard self != nil else { return }
+                send()
+            }
+        }
     }
 
     func setTemperature(_ kelvin: Int) {
         temperature = kelvin
         temperatureTimer?.invalidate()
-        let delay = max(0, 0.04 - Date().timeIntervalSince(lastTemperatureSent))
+        let elapsed = Date().timeIntervalSince(lastTemperatureSent)
         let snapshot = devices
         let queue = usbQueue
-        temperatureTimer = .scheduledTimer(withTimeInterval: delay, repeats: false) { [weak self] _ in
-            self?.lastTemperatureSent = Date()
+        let send = {
+            self.lastTemperatureSent = Date()
             UserDefaults.standard.set(kelvin, forKey: "temperature")
             queue.async {
                 for device in snapshot { try? device.setTemperature(kelvin) }
+            }
+        }
+        if elapsed >= 0.04 {
+            send()
+        } else {
+            temperatureTimer = .scheduledTimer(withTimeInterval: 0.04 - elapsed, repeats: false) { [weak self] _ in
+                guard self != nil else { return }
+                send()
             }
         }
     }
