@@ -1,5 +1,5 @@
 # Lumos-Litra
-MacOS utility to control Logitech Litra lights.
+MacOS utility to control Logitech Litra Beam lights.
 
 <img width="600" height="980" alt="Screenshot 2026-05-27 at 10 38 09 PM" src="https://github.com/user-attachments/assets/58a1a7c7-0735-4f23-89ab-2fb6f97b939e" />
 
