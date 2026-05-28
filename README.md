@@ -16,6 +16,10 @@ Features:
 - Multiple light support
 
 ---
+
+<a href="https://www.buymeacoffee.com/cobyalmond" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me a Coffee" style="height: 60px !important;width: 217px !important;" ></a>
+
+---
 Special thanks to [@timrogers](https://github.com/timrogers) for his inspiration and prior art in:
 https://github.com/timrogers/litra-rs
 and
