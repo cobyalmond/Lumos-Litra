@@ -36,8 +36,8 @@ final class LitraDevice: LitraDeviceProtocol {
 
     static let specs: [Int: Spec] = [
         0xC900: Spec(minBrightness: 20,  maxBrightness: 250, commandByte: 0x04, interfaceNumber: 0), // Litra Glow
-        0xC901: Spec(minBrightness: 30,  maxBrightness: 400, commandByte: 0x04, interfaceNumber: 0), // Litra Beam
-        0xB901: Spec(minBrightness: 30,  maxBrightness: 400, commandByte: 0x04, interfaceNumber: 0), // Litra Beam (alt PID)
+        0xC901: Spec(minBrightness: 4,   maxBrightness: 400, commandByte: 0x04, interfaceNumber: 0), // Litra Beam
+        0xB901: Spec(minBrightness: 4,   maxBrightness: 400, commandByte: 0x04, interfaceNumber: 0), // Litra Beam (alt PID)
         0xC903: Spec(minBrightness: 30,  maxBrightness: 400, commandByte: 0x06, interfaceNumber: 0), // Litra Beam LX
     ]
 

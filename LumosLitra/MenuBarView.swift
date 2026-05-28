@@ -45,6 +45,31 @@ private struct GradientSlider: View {
     }
 }
 
+private struct MenuLabelStyle: LabelStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        HStack(spacing: 6) {
+            configuration.icon
+                .frame(width: 18, alignment: .center)
+            configuration.title
+        }
+    }
+}
+
+private struct HoverRow<Content: View>: View {
+    @State private var isHovered = false
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        content()
+            .padding(.horizontal, 16)
+            .padding(.vertical, 7)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.primary.opacity(isHovered ? 0.06 : 0))
+            .contentShape(Rectangle())
+            .onHover { isHovered = $0 }
+    }
+}
+
 // Maps a Kelvin color temperature to an approximate screen color.
 // 2700K → rich amber, 4000K → golden yellow, 6500K → near-white
 extension Color {
@@ -74,37 +99,50 @@ struct MenuBarView: View {
 
             Divider()
 
-            Toggle("Launch at Login", isOn: $launchAtLogin)
-                .toggleStyle(.checkbox)
-                .foregroundStyle(.secondary)
-                .font(.callout)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 16)
-                .padding(.top, 10)
-                .onChange(of: launchAtLogin) { _, enabled in
-                    do {
-                        if enabled { try SMAppService.mainApp.register() }
-                        else       { try SMAppService.mainApp.unregister() }
-                    } catch {
-                        print("[LumosLitra] Launch at login: \(error)")
-                        launchAtLogin = !enabled  // revert on failure
-                    }
+            HoverRow {
+                HStack(spacing: 8) {
+                    Label("Launch at Login", systemImage: "power")
+                        .font(.body)
+                        .labelStyle(MenuLabelStyle())
+                    Spacer()
+                    Toggle("", isOn: $launchAtLogin)
+                        .labelsHidden()
+                        .allowsHitTesting(false)
                 }
+            }
+            .onTapGesture {
+                let next = !launchAtLogin
+                do {
+                    if next { try SMAppService.mainApp.register() }
+                    else    { try SMAppService.mainApp.unregister() }
+                    launchAtLogin = next
+                } catch {
+                    print("[LumosLitra] Launch at login: \(error)")
+                }
+            }
+            .padding(.top, 3)
 
             Divider()
                 .padding(.horizontal, 16)
-                .padding(.top, 6)
 
-            Button("Quit") {
-                NSApplication.shared.terminate(nil)
+            HoverRow {
+                Button(action: { NSApplication.shared.terminate(nil) }) {
+                    HStack {
+                        Image(systemName: "xmark.rectangle")
+                            .foregroundStyle(.tertiary)
+                            .frame(width: 18, alignment: .center)
+                        Text("Quit LumosLitra")
+                        Spacer()
+                        Text("⌘Q")
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .keyboardShortcut("q")
+                .buttonStyle(.plain)
+                .font(.body)
             }
-            .keyboardShortcut("q")
-            .buttonStyle(.plain)
-            .foregroundStyle(.secondary)
-            .font(.callout)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
+            .padding(.bottom, 3)
         }
         .frame(width: 280)
     }
@@ -118,7 +156,7 @@ struct MenuBarView: View {
                 .foregroundStyle(.secondary)
             Text("No lights connected")
                 .foregroundStyle(.secondary)
-                .font(.callout)
+                .font(.body)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 24)
@@ -143,12 +181,38 @@ struct MenuBarView: View {
                 .tint(Color.kelvin(litra.temperature))
             }
 
+            HStack {
+                Text("Status")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                Spacer()
+                HStack(spacing: 4) {
+                    Circle()
+                        .fill(.green)
+                        .frame(width: 6, height: 6)
+                    Text("\(litra.devices.count) light\(litra.devices.count == 1 ? "" : "s") connected")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                }
+            }
+
             Divider()
 
             // Brightness
             VStack(alignment: .leading, spacing: 6) {
-                Label("Brightness", systemImage: "sun.max")
-                    .font(.subheadline)
+                HStack {
+                    Label("Brightness", systemImage: "sun.max")
+                        .font(.body)
+                        .labelStyle(MenuLabelStyle())
+                    Spacer()
+                    let totalLumens = litra.devices.reduce(0) { sum, device in
+                        sum + device.spec.minBrightness + Int(litra.brightness * Double(device.spec.maxBrightness - device.spec.minBrightness))
+                    }
+                    Text("\(totalLumens) lumens")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                }
 
                 GradientSlider(
                     value: Binding(
@@ -167,11 +231,12 @@ struct MenuBarView: View {
             VStack(alignment: .leading, spacing: 6) {
                 HStack {
                     Label("Temperature", systemImage: "thermometer.medium")
-                        .font(.subheadline)
+                        .font(.body)
+                        .labelStyle(MenuLabelStyle())
                         .foregroundStyle(litra.circadianEnabled ? .secondary : .primary)
                     Spacer()
                     Text("\(litra.temperature)K")
-                        .font(.caption)
+                        .font(.callout)
                         .foregroundStyle(.secondary)
                         .monospacedDigit()
                 }
@@ -194,59 +259,72 @@ struct MenuBarView: View {
                     Spacer()
                     Text("Cool")
                 }
-                .font(.caption2)
+                .font(.caption)
                 .foregroundStyle(.tertiary)
             }
 
             // Circadian toggle
-            HStack(spacing: 8) {
-                Label("Circadian", systemImage: "sun.and.horizon")
-                    .font(.subheadline)
-                Spacer()
-                if litra.circadianEnabled {
-                    Text("\(litra.solarAltitude >= 0 ? "+" : "")\(Int(litra.solarAltitude))°")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .monospacedDigit()
+            HoverRow {
+                HStack(spacing: 8) {
+                    Label("Circadian Mode", systemImage: "sun.and.horizon")
+                        .font(.body)
+                        .labelStyle(MenuLabelStyle())
+                    Spacer()
+                    if litra.circadianEnabled {
+                        Text("\(litra.solarAltitude >= 0 ? "+" : "")\(Int(litra.solarAltitude))°")
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
+                    }
+                    Toggle("", isOn: Binding(
+                        get: { litra.circadianEnabled },
+                        set: { litra.circadianEnabled = $0 }
+                    ))
+                    .labelsHidden()
+                    .allowsHitTesting(false)
                 }
-                Toggle("", isOn: Binding(
-                    get: { litra.circadianEnabled },
-                    set: { litra.circadianEnabled = $0 }
-                ))
-                .labelsHidden()
             }
+            .onTapGesture { litra.circadianEnabled.toggle() }
+            .padding(.horizontal, -16)
 
             // Camera auto-on
-            HStack(spacing: 8) {
-                Label("Camera auto-on", systemImage: "camera")
-                    .font(.subheadline)
-                Spacer()
-                Toggle("", isOn: Binding(
-                    get: { litra.cameraAutoOn },
-                    set: { litra.cameraAutoOn = $0 }
-                ))
-                .labelsHidden()
+            HoverRow {
+                HStack(spacing: 8) {
+                    Label("Camera auto-on", systemImage: "video")
+                        .font(.body)
+                        .labelStyle(MenuLabelStyle())
+                    Spacer()
+                    Toggle("", isOn: Binding(
+                        get: { litra.cameraAutoOn },
+                        set: { litra.cameraAutoOn = $0 }
+                    ))
+                    .labelsHidden()
+                    .allowsHitTesting(false)
+                }
             }
+            .onTapGesture { litra.cameraAutoOn.toggle() }
+            .padding(.horizontal, -16)
 
             // Sync toggle — only relevant with multiple lights
             if litra.devices.count > 1 {
-                HStack(spacing: 8) {
-                    Label("Button sync", systemImage: "arrow.left.arrow.right")
-                        .font(.subheadline)
-                    Spacer()
-                    Toggle("", isOn: Binding(
-                        get: { litra.syncEnabled },
-                        set: { litra.syncEnabled = $0 }
-                    ))
-                    .labelsHidden()
+                HoverRow {
+                    HStack(spacing: 8) {
+                        Label("Button sync", systemImage: "arrow.left.arrow.right")
+                            .font(.body)
+                            .labelStyle(MenuLabelStyle())
+                        Spacer()
+                        Toggle("", isOn: Binding(
+                            get: { litra.syncEnabled },
+                            set: { litra.syncEnabled = $0 }
+                        ))
+                        .labelsHidden()
+                        .allowsHitTesting(false)
+                    }
                 }
+                .onTapGesture { litra.syncEnabled.toggle() }
+                .padding(.horizontal, -16)
             }
 
-            // Device count
-            Text("\(litra.devices.count) light\(litra.devices.count == 1 ? "" : "s") connected")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
-                .frame(maxWidth: .infinity, alignment: .trailing)
         }
         .padding(16)
     }

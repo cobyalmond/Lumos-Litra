@@ -88,6 +88,12 @@ final class LitraManager: ObservableObject {
         if cameraAutoOn     { cameraMonitor?.start() }
     }
 
+    #if DEBUG
+    init(mockDevices: [any LitraDeviceProtocol]) {
+        devices = mockDevices
+    }
+    #endif
+
     deinit {
         circadianTimer?.invalidate()
         if connectIterator != 0    { IOObjectRelease(connectIterator) }
@@ -217,7 +223,7 @@ final class LitraManager: ObservableObject {
 
     // MARK: - Hardware sync
 
-    private func handleHIDReport(_ bytes: [UInt8]) {
+    func handleHIDReport(_ bytes: [UInt8]) {
         guard bytes.count >= 6, bytes[0] == 0x11, bytes[1] == 0xff else { return }
         switch bytes[3] {
         case 0x00:
