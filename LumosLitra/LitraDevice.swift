@@ -1,12 +1,31 @@
 import IOKit
 import IOUSBHost
 
+protocol LitraDeviceProtocol: AnyObject {
+    var spec: LitraDevice.Spec { get }
+    var usbDeviceEntryID: UInt64 { get }
+    func setPower(_ on: Bool) throws
+    func setBrightness(_ lumens: Int) throws
+    func setTemperature(_ kelvin: Int) throws
+}
+
+#if DEBUG
+final class MockLitraDevice: LitraDeviceProtocol {
+    let spec: LitraDevice.Spec
+    let usbDeviceEntryID: UInt64
+    init(spec: LitraDevice.Spec, id: UInt64) { self.spec = spec; self.usbDeviceEntryID = id }
+    func setPower(_ on: Bool) throws {}
+    func setBrightness(_ lumens: Int) throws {}
+    func setTemperature(_ kelvin: Int) throws {}
+}
+#endif
+
 // Represents one physical Litra light.
 //
 // Commands are sent as USB HID SET_REPORT control transfers directly to the
 // device's control endpoint (USB endpoint 0). This bypasses the macOS HID
 // subsystem entirely, so the app never needs Input Monitoring permission.
-final class LitraDevice {
+final class LitraDevice: LitraDeviceProtocol {
 
     struct Spec {
         let minBrightness: Int  // lumens

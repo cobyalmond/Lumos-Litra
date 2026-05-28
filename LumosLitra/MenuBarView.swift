@@ -1,6 +1,50 @@
 import SwiftUI
 import ServiceManagement
 
+private struct GradientSlider: View {
+    @Binding var value: Double
+    let range: ClosedRange<Double>
+    var step: Double? = nil
+    let stops: [Gradient.Stop]
+    var disabled: Bool = false
+
+    private let trackHeight: CGFloat = 4
+    private let thumbSize: CGFloat = 18
+
+    var body: some View {
+        GeometryReader { geo in
+            let usableWidth = geo.size.width - thumbSize
+            let fraction = ((value - range.lowerBound) / (range.upperBound - range.lowerBound)).clamped(to: 0...1)
+
+            ZStack(alignment: .leading) {
+                LinearGradient(stops: stops, startPoint: .leading, endPoint: .trailing)
+                    .frame(height: trackHeight)
+                    .clipShape(Capsule())
+                    .padding(.horizontal, thumbSize / 2)
+                    .opacity(disabled ? 0.4 : 1)
+
+                Circle()
+                    .fill(.white)
+                    .shadow(color: .black.opacity(0.25), radius: 2, y: 1)
+                    .frame(width: thumbSize, height: thumbSize)
+                    .offset(x: fraction * Double(usableWidth))
+            }
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { drag in
+                        guard !disabled else { return }
+                        let raw = (Double(drag.location.x) - Double(thumbSize) / 2) / Double(usableWidth)
+                        var v = range.lowerBound + raw.clamped(to: 0...1) * (range.upperBound - range.lowerBound)
+                        if let step { v = (v / step).rounded() * step }
+                        value = v.clamped(to: range)
+                    }
+            )
+        }
+        .frame(height: thumbSize)
+    }
+}
+
 // Maps a Kelvin color temperature to an approximate screen color.
 // 2700K → rich amber, 4000K → golden yellow, 6500K → near-white
 extension Color {
@@ -106,12 +150,16 @@ struct MenuBarView: View {
                 Label("Brightness", systemImage: "sun.max")
                     .font(.subheadline)
 
-                Slider(
+                GradientSlider(
                     value: Binding(
                         get: { litra.brightness },
                         set: { litra.setBrightness($0) }
                     ),
-                    in: 0...1
+                    range: 0...1,
+                    stops: [
+                        .init(color: Color(white: 0.08), location: 0),
+                        .init(color: .white, location: 1)
+                    ]
                 )
             }
 
@@ -128,15 +176,18 @@ struct MenuBarView: View {
                         .monospacedDigit()
                 }
 
-                Slider(
+                GradientSlider(
                     value: Binding(
                         get: { Double(litra.temperature) },
                         set: { litra.setTemperature(Int($0)) }
                     ),
-                    in: 2700...6500,
-                    step: 100
+                    range: 2700...6500,
+                    step: 100,
+                    stops: [2700, 3300, 4000, 4800, 5600, 6500].map { k in
+                        .init(color: .kelvin(k), location: Double(k - 2700) / Double(6500 - 2700))
+                    },
+                    disabled: litra.circadianEnabled
                 )
-                .disabled(litra.circadianEnabled)
 
                 HStack {
                     Text("Warm")

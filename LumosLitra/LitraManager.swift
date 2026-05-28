@@ -13,7 +13,7 @@ import Combine
 //   finds them.
 final class LitraManager: ObservableObject {
 
-    @Published private(set) var devices: [LitraDevice] = []
+    @Published private(set) var devices: [any LitraDeviceProtocol] = []
     @Published var isOn: Bool = false
     @Published var brightness: Double = 0.5
     @Published var temperature: Int = 4000
@@ -37,6 +37,10 @@ final class LitraManager: ObservableObject {
     }
     @Published private(set) var solarAltitude: Double = 0
 
+    #if DEBUG
+    private let isPreview = CommandLine.arguments.contains("--preview")
+    #endif
+
     private var notificationPort: IONotificationPortRef?
     private var notificationSource: CFRunLoopSource?
     private var connectIterator: io_iterator_t = 0
@@ -50,6 +54,8 @@ final class LitraManager: ObservableObject {
     private let usbQueue = DispatchQueue(label: "com.cobyalmond.LumosLitra.usb", qos: .userInitiated)
     private var brightnessTimer: Timer?
     private var temperatureTimer: Timer?
+    private var lastBrightnessSent: Date = .distantPast
+    private var lastTemperatureSent: Date = .distantPast
 
     init() {
         // Load persisted state before discovering devices so newly connected
@@ -62,9 +68,20 @@ final class LitraManager: ObservableObject {
         syncEnabled       = d.object(forKey: "syncEnabled")  as? Bool   ?? true
         cameraAutoOn      = d.bool(forKey: "cameraAutoOn")
 
+        #if DEBUG
+        if isPreview {
+            let spec = LitraDevice.specs[0xC901]!
+            devices = [MockLitraDevice(spec: spec, id: 1), MockLitraDevice(spec: spec, id: 2)]
+        } else {
+            setupNotifications()
+            hidMonitor    = LitraHIDMonitor { [weak self] bytes in self?.handleHIDReport(bytes) }
+            cameraMonitor = CameraMonitor { [weak self] active in self?.handleCameraState(active) }
+        }
+        #else
         setupNotifications()
         hidMonitor    = LitraHIDMonitor { [weak self] bytes in self?.handleHIDReport(bytes) }
         cameraMonitor = CameraMonitor { [weak self] active in self?.handleCameraState(active) }
+        #endif
 
         // didSet doesn't fire during init, so start manually if needed.
         if circadianEnabled { startCircadian() }
@@ -118,9 +135,11 @@ final class LitraManager: ObservableObject {
     func setBrightness(_ fraction: Double) {
         brightness = fraction
         brightnessTimer?.invalidate()
+        let delay = max(0, 0.04 - Date().timeIntervalSince(lastBrightnessSent))
         let snapshot = devices
         let queue = usbQueue
-        brightnessTimer = .scheduledTimer(withTimeInterval: 0.04, repeats: false) { _ in
+        brightnessTimer = .scheduledTimer(withTimeInterval: delay, repeats: false) { [weak self] _ in
+            self?.lastBrightnessSent = Date()
             UserDefaults.standard.set(fraction, forKey: "brightness")
             queue.async {
                 for device in snapshot {
@@ -134,9 +153,11 @@ final class LitraManager: ObservableObject {
     func setTemperature(_ kelvin: Int) {
         temperature = kelvin
         temperatureTimer?.invalidate()
+        let delay = max(0, 0.04 - Date().timeIntervalSince(lastTemperatureSent))
         let snapshot = devices
         let queue = usbQueue
-        temperatureTimer = .scheduledTimer(withTimeInterval: 0.04, repeats: false) { _ in
+        temperatureTimer = .scheduledTimer(withTimeInterval: delay, repeats: false) { [weak self] _ in
+            self?.lastTemperatureSent = Date()
             UserDefaults.standard.set(kelvin, forKey: "temperature")
             queue.async {
                 for device in snapshot { try? device.setTemperature(kelvin) }
@@ -288,6 +309,9 @@ final class LitraManager: ObservableObject {
     // MARK: - Device reconciliation
 
     private func reconcileDeviceList() {
+        #if DEBUG
+        guard !isPreview else { return }
+        #endif
         struct FoundDevice {
             let entryID: UInt64
             let spec: LitraDevice.Spec
