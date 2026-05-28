@@ -127,11 +127,13 @@ struct MenuBarView: View {
 
             HoverRow {
                 Button(action: { NSApplication.shared.terminate(nil) }) {
-                    HStack {
-                        Image(systemName: "xmark.rectangle")
-                            .foregroundStyle(.tertiary)
-                            .frame(width: 18, alignment: .center)
-                        Text("Quit LumosLitra")
+                    HStack(spacing: 8) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "xmark.rectangle")
+                                .foregroundStyle(.tertiary)
+                                .frame(width: 18, alignment: .center)
+                            Text("Quit LumosLitra")
+                        }
                         Spacer()
                         Text("⌘Q")
                             .foregroundStyle(.secondary)
