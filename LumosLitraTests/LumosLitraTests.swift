@@ -5,25 +5,34 @@ import XCTest
 
 final class SunPositionTests: XCTestCase {
 
+    // MARK: kelvin — evening (default)
+
     func testKelvinAtOrBelowHorizon() {
+        // Evening floor is 2700K; anything at or below the horizon holds there.
         XCTAssertEqual(SunPosition.kelvin(for: 0),   2700)
         XCTAssertEqual(SunPosition.kelvin(for: -10), 2700)
         XCTAssertEqual(SunPosition.kelvin(for: -90), 2700)
     }
 
-    func testKelvinAtOrAboveZenith() {
-        XCTAssertEqual(SunPosition.kelvin(for: 30), 5500)
-        XCTAssertEqual(SunPosition.kelvin(for: 60), 5500)
-        XCTAssertEqual(SunPosition.kelvin(for: 90), 5500)
+    func testKelvinAtOrAboveCeiling() {
+        // Altitude ≥ 45° is capped at 6500K.
+        XCTAssertEqual(SunPosition.kelvin(for: 45), 6500)
+        XCTAssertEqual(SunPosition.kelvin(for: 60), 6500)
+        XCTAssertEqual(SunPosition.kelvin(for: 90), 6500)
     }
 
-    func testKelvinMidpoint() {
-        // altitude 15° = midpoint → (2700 + 5500) / 2 = 4100K
-        XCTAssertEqual(SunPosition.kelvin(for: 15), 4100)
+    func testKelvinAt30Degrees() {
+        // 30° altitude with pow(0.65) ease-in over 45° range → ~5600K
+        XCTAssertEqual(SunPosition.kelvin(for: 30), 5600)
+    }
+
+    func testKelvinAt15Degrees() {
+        // 15° altitude (1/3 of the 45° range) with ease-in → ~4600K
+        XCTAssertEqual(SunPosition.kelvin(for: 15), 4600)
     }
 
     func testKelvinIsMultipleOf100() {
-        for altitude in stride(from: -10.0, through: 40.0, by: 2.5) {
+        for altitude in stride(from: -10.0, through: 50.0, by: 2.5) {
             let k = SunPosition.kelvin(for: altitude)
             XCTAssertEqual(k % 100, 0, "kelvin(\(altitude)) = \(k) is not a multiple of 100")
         }
@@ -33,9 +42,78 @@ final class SunPositionTests: XCTestCase {
         for altitude in stride(from: -90.0, through: 90.0, by: 5.0) {
             let k = SunPosition.kelvin(for: altitude)
             XCTAssertGreaterThanOrEqual(k, 2700)
-            XCTAssertLessThanOrEqual(k, 5500)
+            XCTAssertLessThanOrEqual(k, 6500)
         }
     }
+
+    // MARK: kelvin — morning
+
+    func testKelvinMorningFloor() {
+        // Morning floor is 3300K — warm but not as extreme as post-sunset 2700K.
+        XCTAssertEqual(SunPosition.kelvin(for:  0, isMorning: true), 3300)
+        XCTAssertEqual(SunPosition.kelvin(for: -5, isMorning: true), 3300)
+    }
+
+    func testKelvinMorningLessWarmThanEveningAtHorizon() {
+        // At the horizon, morning (3300K) is cooler than post-sunset evening (2700K).
+        // Higher K = less warm/amber.
+        let morning = SunPosition.kelvin(for: 0, isMorning: true)
+        let evening = SunPosition.kelvin(for: 0, isMorning: false)
+        XCTAssertGreaterThan(morning, evening)
+    }
+
+    func testKelvinMorningAndEveningBothReachCeiling() {
+        // At or above the altitude ceiling both curves converge to 6500K.
+        XCTAssertEqual(SunPosition.kelvin(for: 45, isMorning: true),  6500)
+        XCTAssertEqual(SunPosition.kelvin(for: 45, isMorning: false), 6500)
+        XCTAssertEqual(SunPosition.kelvin(for: 90, isMorning: true),  6500)
+    }
+
+    func testKelvinDefaultIsMorningFalse() {
+        // isMorning defaults to false — bare call matches the evening curve.
+        for alt in [-10.0, 0.0, 15.0, 45.0] {
+            XCTAssertEqual(SunPosition.kelvin(for: alt),
+                           SunPosition.kelvin(for: alt, isMorning: false))
+        }
+    }
+
+    func testKelvinMorningRangeValid() {
+        for altitude in stride(from: -90.0, through: 90.0, by: 5.0) {
+            let k = SunPosition.kelvin(for: altitude, isMorning: true)
+            XCTAssertGreaterThanOrEqual(k, 3300)
+            XCTAssertLessThanOrEqual(k, 6500)
+        }
+    }
+
+    // MARK: isRising
+
+    func testIsRisingBeforeSolarNoon() {
+        // 06:00 UTC at longitude 0° → hour angle ≈ –90° → rising.
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(identifier: "UTC")!
+        let date = cal.date(from: DateComponents(year: 2024, month: 6, day: 21, hour: 6))!
+        XCTAssertTrue(SunPosition.isRising(latitude: 40, longitude: 0, date: date))
+    }
+
+    func testIsRisingAfterSolarNoon() {
+        // 18:00 UTC at longitude 0° → hour angle ≈ +90° → setting.
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(identifier: "UTC")!
+        let date = cal.date(from: DateComponents(year: 2024, month: 6, day: 21, hour: 18))!
+        XCTAssertFalse(SunPosition.isRising(latitude: 40, longitude: 0, date: date))
+    }
+
+    func testIsRisingSymmetricAroundNoon() {
+        // Same number of hours before and after solar noon should give opposite results.
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(identifier: "UTC")!
+        let morning   = cal.date(from: DateComponents(year: 2024, month: 6, day: 21, hour:  8))!
+        let afternoon = cal.date(from: DateComponents(year: 2024, month: 6, day: 21, hour: 16))!
+        XCTAssertTrue( SunPosition.isRising(latitude: 40, longitude: 0, date: morning))
+        XCTAssertFalse(SunPosition.isRising(latitude: 40, longitude: 0, date: afternoon))
+    }
+
+    // MARK: altitude
 
     func testSummerNoonHigherThanWinterNoon() {
         var cal = Calendar(identifier: .gregorian)
@@ -256,7 +334,8 @@ final class LitraManagerTests: XCTestCase {
         let m = LitraManager(mockDevices: [makeMock()])
         m.circadianEnabled = true
         XCTAssertTrue(m.circadianEnabled)
-        // 6500K is above circadian max (5500K), so it will always be different from circadian's value
+        // 6500K differs from the default temperature (4000K), so the physical-button
+        // change is detected and circadian mode is disabled.
         m.handleHIDReport([0x11, 0xff, 0x04, 0x20, 0x19, 0x64])
         XCTAssertFalse(m.circadianEnabled)
     }

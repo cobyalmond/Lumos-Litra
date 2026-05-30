@@ -1,10 +1,46 @@
 import Foundation
 
 // NOAA solar position algorithm.
-// Returns solar altitude (elevation) in degrees above the horizon.
-// Positive = sun is up, negative = sun is below horizon.
 enum SunPosition {
     static func altitude(latitude: Double, longitude: Double, date: Date = .now) -> Double {
+        solarState(latitude: latitude, longitude: longitude, date: date).altitude
+    }
+
+    // Returns true when the sun is east of the meridian (rising half of the day).
+    static func isRising(latitude: Double, longitude: Double, date: Date = .now) -> Bool {
+        solarState(latitude: latitude, longitude: longitude, date: date).hourAngle < 0
+    }
+}
+
+// MARK: - Circadian mapping
+
+extension SunPosition {
+    // Maps solar altitude to a color temperature.
+    //   altitude ≤   0°, evening  →  2700 K (deep warm; post-sunset wind-down)
+    //   altitude ≤   0°, morning  →  3300 K (gentle warm; soft sunrise glow)
+    //   altitude ≥  45°           →  6500 K (cool; full daylight)
+    //
+    // Ease-in curve (pow 0.65): light stays cool through the day and warms
+    // gradually near the horizon. Morning uses a softer floor than evening so
+    // the lights feel warm at sunrise without going full amber.
+    static func kelvin(for altitude: Double, isMorning: Bool = false) -> Int {
+        let t = (altitude / 45.0).clamped(to: 0...1)
+        let curved = pow(t, 0.65)
+        let minK: Double = isMorning ? 3300.0 : 2700.0
+        let raw = minK + curved * (6500.0 - minK)
+        return Int((raw / 100).rounded()) * 100
+    }
+}
+
+// MARK: - Private helpers
+
+private extension SunPosition {
+    struct SolarState {
+        let altitude: Double
+        let hourAngle: Double  // degrees; negative = before solar noon (rising)
+    }
+
+    static func solarState(latitude: Double, longitude: Double, date: Date) -> SolarState {
         let jd  = julianDay(date)
         let jc  = (jd - 2451545.0) / 36525.0  // Julian century from J2000.0
 
@@ -53,27 +89,11 @@ enum SunPosition {
         // Solar altitude = arcsin(sin φ sin δ + cos φ cos δ cos H)
         let sinAlt = sin(rad(latitude)) * sin(rad(decl))
                    + cos(rad(latitude)) * cos(rad(decl)) * cos(rad(ha))
-        return deg(asin(max(-1, min(1, sinAlt))))
+        return SolarState(altitude: deg(asin(max(-1, min(1, sinAlt)))), hourAngle: ha)
     }
 }
-
-// MARK: - Circadian mapping
-
-extension SunPosition {
-    // Maps solar altitude to a color temperature.
-    //   altitude ≤   0°  →  2700 K (warm; sun at or below horizon)
-    //   altitude ≥  30°  →  5500 K (cool; sun well overhead)
-    static func kelvin(for altitude: Double) -> Int {
-        let t = (altitude / 30.0).clamped(to: 0...1)
-        let raw = 2700.0 + t * 2800.0
-        return Int((raw / 100).rounded()) * 100
-    }
-}
-
-// MARK: - Private helpers
 
 private func julianDay(_ date: Date) -> Double {
-    // Reduce date to UTC components
     var cal  = Calendar(identifier: .gregorian)
     cal.timeZone = TimeZone(identifier: "UTC")!
     let comps = cal.dateComponents([.year, .month, .day, .hour, .minute, .second], from: date)
